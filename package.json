@@ -1,0 +1,35 @@
+{
+  "name": "lens-tools",
+  "version": "1.0.0",
+  "description": "CLI tools for Lens Protocol authentication and operations",
+  "type": "module",
+  "main": "dist/index.js",
+  "bin": {
+    "lens-cli": "./dist/cli.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsx src/cli.ts",
+    "start": "node dist/cli.js"
+  },
+  "keywords": [
+    "lens",
+    "authentication",
+    "cli"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@lens-chain/sdk": "^1.0.3",
+    "@lens-chain/storage-client": "^1.0.6",
+    "@lens-protocol/client": "^0.0.0-canary-20250430134539",
+    "@lens-protocol/metadata": "^2.1.0",
+    "commander": "^12.0.0",
+    "viem": "^2.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.0.0"
+  }
+}
