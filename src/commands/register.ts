@@ -4,7 +4,6 @@ import {
   PublicClient,
   uri,
 } from "@lens-protocol/client";
-import { staging } from "@lens-protocol/env";
 import { signMessageWith, handleOperationWith } from "@lens-protocol/client/viem";
 import {
   canCreateUsername,
@@ -15,37 +14,42 @@ import {
 } from "@lens-protocol/client/actions";
 import { account } from "@lens-protocol/metadata";
 import { StorageClient } from "@lens-chain/storage-client";
-import { chains } from "@lens-chain/sdk/viem";
 import { createWalletClient, http } from "viem";
 import { privateKeyToAccount } from "viem/accounts";
+import { formatRegisterFailure } from "./register-error.js";
+import { resolveRegisterUsername } from "./register-username.js";
+import { getNetworkConfig, type LensCliNetwork } from "../network.js";
 
 interface RegisterOptions {
   appAddress: string;
-  username: string;
+  username?: string;
   privateKey: string;
+  network: LensCliNetwork;
   name?: string;
   bio?: string;
 }
 
 export async function register(options: RegisterOptions) {
-  const { appAddress, username, privateKey, name, bio } = options;
+  const { appAddress, privateKey, network, name, bio } = options;
+  const username = resolveRegisterUsername(options.username);
+  const { chain, environment } = getNetworkConfig(network);
 
   const viemAccount = privateKeyToAccount(privateKey as `0x${string}`);
   const walletClient = createWalletClient({
     account: viemAccount,
-    chain: chains.testnet,
+    chain,
     transport: http(),
   });
 
   console.log("\n📝 Starting Lens account registration...");
-  console.log(`Network: testnet`);
+  console.log(`Network: ${network}`);
   console.log(`App: ${appAddress}`);
   console.log(`Wallet: ${viemAccount.address}`);
   console.log(`Username: lens/${username}`);
 
   // Step 1: Create PublicClient and run pre-checks
   const client = PublicClient.create({
-    environment: staging,
+    environment,
     origin: "https://lens.xyz",
   });
 
@@ -133,21 +137,31 @@ export async function register(options: RegisterOptions) {
 
   // Step 4: Create account with username
   console.log("\n3️⃣  Creating account with username...");
-  const result = await createAccountWithUsername(sessionClient, {
+  const createResult = await createAccountWithUsername(sessionClient, {
     username: { localName: username },
     metadataUri: uri(metadataUri),
-  })
-    .andThen(handleOperationWith(walletClient))
-    .andThen(sessionClient.waitForTransaction);
+  }).andThen(handleOperationWith(walletClient));
 
-  if (result.isErr()) {
+  if (createResult.isErr()) {
     throw new Error(
-      `Account creation failed: ${JSON.stringify(result.error)}`
+      formatRegisterFailure("Account creation failed", createResult.error)
     );
   }
 
-  const txHash = result.value;
+  const txHash = createResult.value;
   console.log(`Transaction hash: ${txHash}`);
+
+  const indexingResult = await sessionClient.waitForTransaction(txHash);
+
+  if (indexingResult.isErr()) {
+    throw new Error(
+      formatRegisterFailure(
+        "Account creation indexing failed",
+        indexingResult.error,
+        txHash
+      )
+    );
+  }
 
   // Step 5: Switch to the new account and get credentials
   console.log("\n4️⃣  Switching to new account...");

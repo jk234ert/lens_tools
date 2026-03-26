@@ -1,12 +1,12 @@
-import { createWalletClient, http, type Address, type PrivateKeyAccount } from 'viem';
-import { mainnet, sepolia } from 'viem/chains';
+import { createWalletClient, http, type Chain, type PrivateKeyAccount } from 'viem';
 import { privateKeyToAccount } from 'viem/accounts';
+import { getNetworkConfig, type LensCliNetwork } from '../network.js';
 
 interface AuthenticateOptions {
   appAddress: string;
   accountAddress: string;
   ownerAddress: string;
-  network: 'mainnet' | 'testnet';
+  network: LensCliNetwork;
   privateKey?: string;
 }
 
@@ -21,10 +21,21 @@ interface ChallengeResponse {
   text: string;
 }
 
-const API_ENDPOINTS = {
-  mainnet: 'https://api.lens.xyz',
-  testnet: 'https://api.staging.lens.dev',
-};
+interface ChallengeQueryResult {
+  data: {
+    challenge: ChallengeResponse;
+  };
+  errors?: unknown;
+}
+
+interface AuthenticateQueryResult {
+  data: {
+    authenticate: AuthenticationTokens & {
+      reason?: string;
+    };
+  };
+  errors?: unknown;
+}
 
 export async function authenticate(options: AuthenticateOptions): Promise<AuthenticationTokens> {
   const { appAddress, accountAddress, ownerAddress, network, privateKey } = options;
@@ -33,8 +44,7 @@ export async function authenticate(options: AuthenticateOptions): Promise<Authen
     throw new Error('Private key is required. Provide it via --private-key option.');
   }
 
-  const apiEndpoint = API_ENDPOINTS[network];
-  const chain = network === 'mainnet' ? mainnet : sepolia;
+  const { apiEndpoint, chain } = getNetworkConfig(network);
 
   console.log('\n📝 Starting Lens authentication flow...');
   console.log(`Network: ${network}`);
@@ -44,7 +54,7 @@ export async function authenticate(options: AuthenticateOptions): Promise<Authen
 
   // Step 1: Generate authentication challenge
   console.log('\n1️⃣  Generating authentication challenge...');
-  const challenge = await generateChallenge(apiEndpoint, accountAddress, ownerAddress, appAddress);
+  const challenge = await generateChallenge(`${apiEndpoint}/graphql`, accountAddress, ownerAddress, appAddress);
   console.log(`Challenge ID: ${challenge.id}`);
 
   // Step 2: Sign the SIWE message with viem
@@ -56,7 +66,7 @@ export async function authenticate(options: AuthenticateOptions): Promise<Authen
   // Step 3: Authenticate and get tokens
   console.log('\n3️⃣  Authenticating with Lens...');
   const tokens = await authenticateWithLens(
-    apiEndpoint,
+    `${apiEndpoint}/graphql`,
     challenge.id,
     signature
   );
@@ -65,7 +75,7 @@ export async function authenticate(options: AuthenticateOptions): Promise<Authen
 }
 
 async function generateChallenge(
-  apiEndpoint: string,
+  graphqlEndpoint: string,
   accountAddress: string,
   ownerAddress: string,
   appAddress: string
@@ -89,7 +99,7 @@ async function generateChallenge(
     },
   };
 
-  const response = await fetch(`${apiEndpoint}/graphql`, {
+  const response = await fetch(graphqlEndpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -104,7 +114,7 @@ async function generateChallenge(
     throw new Error(`Failed to generate challenge: ${error}`);
   }
 
-  const result = await response.json();
+  const result = await response.json() as ChallengeQueryResult;
 
   if (result.errors) {
     throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);
@@ -116,7 +126,7 @@ async function generateChallenge(
 async function signMessage(
   account: PrivateKeyAccount,
   message: string,
-  chain: typeof mainnet | typeof sepolia
+  chain: Chain
 ): Promise<string> {
   const client = createWalletClient({
     account,
@@ -133,7 +143,7 @@ async function signMessage(
 }
 
 async function authenticateWithLens(
-  apiEndpoint: string,
+  graphqlEndpoint: string,
   challengeId: string,
   signature: string
 ): Promise<AuthenticationTokens> {
@@ -159,7 +169,7 @@ async function authenticateWithLens(
     },
   };
 
-  const response = await fetch(`${apiEndpoint}/graphql`, {
+  const response = await fetch(graphqlEndpoint, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -174,7 +184,7 @@ async function authenticateWithLens(
     throw new Error(`Failed to authenticate: ${error}`);
   }
 
-  const result = await response.json();
+  const result = await response.json() as AuthenticateQueryResult;
 
   if (result.errors) {
     throw new Error(`GraphQL errors: ${JSON.stringify(result.errors)}`);

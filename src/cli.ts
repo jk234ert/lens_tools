@@ -48,7 +48,7 @@ program
   .requiredOption('-a, --app <address>', 'App address (e.g., 0x8A5Cc31180c37078e1EbA2A23c861Acf351a97cE)')
   .requiredOption('-u, --account <address>', 'Account address')
   .requiredOption('-o, --owner <address>', 'Owner address')
-  .option('-n, --network <network>', 'Network (mainnet or testnet)', 'testnet')
+  .option('-n, --network <network>', 'Network (mainnet, staging, or testnet)', 'testnet')
   .option('-p, --private-key <key>', 'Private key for signing (optional, will prompt if not provided)')
   .action(async (options) => {
     try {
@@ -70,9 +70,10 @@ program
 
 program
   .command('register')
-  .description('Register a new Lens account on testnet')
+  .description('Register a new Lens account')
   .requiredOption('-a, --app <address>', 'App address')
-  .requiredOption('-u, --username <name>', 'Desired username (e.g., wagmi)')
+  .option('-u, --username <name>', 'Desired username (defaults to an auto-generated test name)')
+  .option('-n, --network <network>', 'Network (mainnet, staging, or testnet)', 'testnet')
   .requiredOption('-p, --private-key <key>', 'Private key for signing')
   .option('--name <name>', 'Display name for the account')
   .option('--bio <bio>', 'Bio for the account')
@@ -82,6 +83,7 @@ program
         appAddress: options.app,
         username: options.username,
         privateKey: options.privateKey,
+        network: options.network,
         name: options.name,
         bio: options.bio,
       });

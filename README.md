@@ -32,7 +32,7 @@ npm run dev -- auth \
 - `-u, --account <address>`: Account address (required)
 - `-o, --owner <address>`: Owner address (required)
 - `-p, --private-key <key>`: Private key for signing (required)
-- `-n, --network <network>`: Network - `mainnet` or `testnet` (default: `testnet`)
+- `-n, --network <network>`: Network - `mainnet`, `staging`, or `testnet` (default: `testnet`)
 
 ### Output
 
@@ -67,7 +67,7 @@ npm start auth --help
 
 ## Project Structure
 
-```
+```text
 lens_tools/
 ├── src/
 │   ├── cli.ts                    # CLI entry point
@@ -90,6 +90,7 @@ The authentication process consists of three steps:
 ## API Endpoints
 
 - **Mainnet**: `https://api.lens.xyz`
+- **Staging**: `https://api.staging.lens.dev`
 - **Testnet**: `https://api.testnet.lens.xyz`
 
 ## Security
